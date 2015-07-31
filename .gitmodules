@@ -1,0 +1,3 @@
+[submodule "modules/puppetlabs-mongodb"]
+	path = modules/puppetlabs-mongodb
+	url = git@github.com:puppetlabs/puppetlabs-mongodb.git

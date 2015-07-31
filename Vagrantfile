@@ -5,12 +5,12 @@
 # configures the configuration version (we support older styles for
 # backwards compatibility). Please don't change it unless you know what
 # you're doing.
-system("
-    if [ #{ARGV[0]} = 'up' ]; then
-        echo 'Checking to see if keys need to be created'
-        ./key_creation.sh
-    fi
-")
+# system("
+#     if [ #{ARGV[0]} = 'up' ]; then
+#         echo 'Checking to see if keys need to be created'
+#         ./key_creation.sh
+#     fi
+# ")
 
 Vagrant.configure(2) do |config|
   # The most common configuration options are documented and commented below.
@@ -19,6 +19,15 @@ Vagrant.configure(2) do |config|
 
   # Every Vagrant development environment requires a box. You can search for
   # boxes at https://atlas.hashicorp.com/search.
+  config.trigger.before :up, :option => "value" do
+    run "echo 'Checking to see if keys need to be created'"
+    run "./key_creation.sh"
+  end
+
+  config.trigger.after :up, :option => "value" do
+    run "python update_zone_records.py persistence.hackemergency.halfapenguin.com"
+  end
+
   required_plugins = %w( puppet vagrant-digitalocean )
   required_plugins.each do |plugin|
     system "vagrant plugin install #{plugin}" unless Vagrant.has_plugin? plugin
@@ -35,15 +44,19 @@ Vagrant.configure(2) do |config|
     config.vbguest.auto_update = true
   end
 
+  # config.vm.network :forwarded_port, guest: 27017, host: 27017
+
+  config.vm.hostname = 'persistence.hackemergency.halfapenguin.com'
   config.vm.provider :digital_ocean do |provider, override|
     override.ssh.private_key_path = 'keys/persistence'
     override.vm.box = 'digital_ocean'
     override.vm.box_url = "https://github.com/smdahlen/vagrant-digitalocean/raw/master/box/digital_ocean.box"
 
     provider.token = ENV["DIGITALOCEAN_ACCESS_TOKEN"]
-    provider.image = 'ubuntu-15-04-x64'
+    provider.image = 'ubuntu-14-04-x64'
     provider.region = 'ams2'
     provider.size = '1gb'
+    provider.private_networking = true
   end
   # config.puppet_install.puppet_version = :latest
   config.ssh.shell = "bash -c 'BASH_ENV=/etc/profile exec bash'"
@@ -53,7 +66,6 @@ Vagrant.configure(2) do |config|
     puppet.options = "--verbose --debug"
     puppet.module_path = "modules"
   end
-
   # Disable automatic box update checking. If you disable this, then
   # boxes will only be checked for updates when the user runs
   # `vagrant box outdated`. This is not recommended.
