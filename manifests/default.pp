@@ -9,13 +9,14 @@ class { 'rabbitmq':
     port                    => '5672',
     service_manage          => true,
     delete_guest_user => true,
+    # refreshonly => true
     # environment_variables   => {
     #     'RABBITMQ_NODENAME'     => 'server',
     #     'RABBITMQ_SERVICENAME'  => 'rabbitMQ'
     # }
 }
 
-$server_lsbdistcodename = downcase($::lsbdistcodename)
+# $server_lsbdistcodename = downcase($::lsbdistcodename)
 
 # class { 'apt':  
 #     always_apt_update => true,
@@ -88,20 +89,20 @@ $server_lsbdistcodename = downcase($::lsbdistcodename)
 
 
 
-class { '::mongodb::globals':
-  # manage_package_repo => true,
-  server_package_name => 'mongodb-org-server',
-  version => '2.6.10'
-}->
-exec { 'apt-get-update':  
-    command     => '/usr/bin/apt-get -y update',
-    refreshonly => true,
-}->
-class {'::mongodb::server': 
-    port => 27017,
-    auth => true,
-    bind_ip => ['0.0.0.0'],
-}
+# class { '::mongodb::globals':
+#   # manage_package_repo => true,
+#   server_package_name => 'mongodb-org-server',
+#   version => '2.6.10'
+# }->
+# exec { 'apt-get-update':  
+#     command     => '/usr/bin/apt-get -y update',
+#     refreshonly => true,
+# }->
+# class {'::mongodb::server': 
+    # port => 27017,
+    # auth => true,
+    # bind_ip => ['0.0.0.0'],
+# }
 # mongodb_database { testdb:
 #   ensure   => present,
 #   tries    => 10,
@@ -119,12 +120,55 @@ class {'::mongodb::server':
 #   require       => Class['::mongodb::server'],
 # }
 
-mongodb_user { gemma:
-  name          => 'gemma',
-  ensure        => present,
-  password_hash => mongodb_password('gemma', 'mypassword'),
-  database      => admin,
-  roles         => ['root'],
-  tries         => 10,
-  require       => Class['::mongodb::server'],
+# mongodb_user { gemma:
+#   name          => 'gemma',
+#   ensure        => present,
+#   password_hash => mongodb_password('gemma', 'mypassword'),
+#   database      => admin,
+#   roles         => ['root'],
+#   tries         => 10,
+#   require       => Class['::mongodb::server'],
+# }
+
+file { "/etc/mongod.conf":
+    owner => root,
+    group => root,
+    mode => 644,
+    source => "/vagrant/manifests/files/mongod.conf"
+}->
+apt::source { '10gen':
+    location   => 'http://downloads-distro.mongodb.org/repo/ubuntu-upstart/',
+    release     => 'dist',
+    repos       => '10gen',
+    key         => '7F0CEB10',
+    key_server  => 'keyserver.ubuntu.com',
+    include_src => false,
+    # refreshonly => true 
+}->
+package {
+    "mongodb-org": ensure => "2.6.10"
+}->
+service { "mongod":
+  ensure => "running",
 }
+
+# class { '::mongodb::globals':
+#   # manage_package_repo => true,
+#   server_package_name => 'mongodb-org-server',
+#   version => '2.6.10'
+# }->
+# mongodb_user { gemma:
+#   name          => 'gemma',
+#   ensure        => present,
+#   password_hash => mongodb_password('gemma', 'mypassword'),
+#   database      => admin,
+#   roles         => ['root'],
+#   tries         => 10,
+#   # require       => Class['::mongodb::server'],
+# }->
+# class {'::mongodb::server': 
+#     port => 27017,
+#     auth => true,
+#     bind_ip => ['0.0.0.0'],
+# }
+
